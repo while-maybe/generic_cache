@@ -1,7 +1,9 @@
 package cache_test
 
 import (
+	"fmt"
 	cache "genericcache"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -50,4 +52,35 @@ func TestCache(t *testing.T) {
 	v, found = c.Read(3)
 	assert.True(t, found)
 	assert.Equal(t, "drei", v)
+}
+
+// TestCache_Parallel_goroutines simulates a number of parallel tasks each operating on the cache.
+// It passes if we only use "go test .", but we see the error as soon as we use "go test -race ."
+func TestCache_Parallel_goroutines(t *testing.T) {
+	c := cache.New[int, string]()
+
+	const parallelTasks = 10
+	wg := sync.WaitGroup{}
+	wg.Add(parallelTasks)
+
+	for i := range parallelTasks {
+		go func(j int) {
+			defer wg.Done()
+			c.Upsert(4, fmt.Sprint(j))
+		}(i)
+	}
+}
+
+// TestCache_Parallel runs two routines that have concurrent access to write to the cache.
+func TestCache_Parallel(t *testing.T) {
+	c := cache.New[int, string]()
+
+	t.Run("write six", func(t *testing.T) {
+		t.Parallel()
+		c.Upsert(6, "six")
+	})
+	t.Run("write kuus", func(t *testing.T) {
+		t.Parallel()
+		c.Upsert(6, "kuus")
+	})
 }

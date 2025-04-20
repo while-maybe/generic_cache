@@ -17,7 +17,10 @@ test:
 	@go test ./... -vet=off
 
 cover:
-	go test ./... -cover
+	@go test ./... -cover
 
 bench:
 	@go test ./... -run=^$ -bench=. -benchmem
+
+race:
+	@go test ./... -race

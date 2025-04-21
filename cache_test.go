@@ -59,7 +59,7 @@ func TestCache(t *testing.T) {
 func TestCache_Parallel_goroutines(t *testing.T) {
 	c := cache.New[int, string]()
 
-	const parallelTasks = 10
+	const parallelTasks = 1000
 	wg := sync.WaitGroup{}
 	wg.Add(parallelTasks)
 

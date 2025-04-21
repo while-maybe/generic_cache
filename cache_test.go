@@ -23,7 +23,7 @@ TestCache is an integration test.
 */
 
 func TestCache(t *testing.T) {
-	c := cache.New[int, string](time.Minute)
+	c := cache.New[int, string](5, time.Minute)
 
 	c.Upsert(5, "fünf")
 	v, found := c.Read(5)
@@ -58,7 +58,7 @@ func TestCache(t *testing.T) {
 // TestCache_Parallel_goroutines simulates a number of parallel tasks each operating on the cache.
 // It passes if we only use "go test .", but we see the error as soon as we use "go test -race ."
 func TestCache_Parallel_goroutines(t *testing.T) {
-	c := cache.New[int, string](time.Second)
+	c := cache.New[int, string](3, time.Second)
 
 	const parallelTasks = 1000
 	wg := sync.WaitGroup{}
@@ -74,7 +74,7 @@ func TestCache_Parallel_goroutines(t *testing.T) {
 
 // TestCache_Parallel runs two routines that have concurrent access to write to the cache.
 func TestCache_Parallel(t *testing.T) {
-	c := cache.New[int, string](time.Second)
+	c := cache.New[int, string](5, time.Second)
 
 	t.Run("write six", func(t *testing.T) {
 		t.Parallel()
@@ -90,7 +90,7 @@ func TestCache_Parallel(t *testing.T) {
 func TestCache_TTL(t *testing.T) {
 	t.Parallel()
 
-	c := cache.New[string, string](time.Millisecond * 100)
+	c := cache.New[string, string](5, time.Millisecond*100)
 	c.Upsert("Norwegian", "Blue")
 
 	// Check if item exists
@@ -103,4 +103,30 @@ func TestCache_TTL(t *testing.T) {
 
 	assert.False(t, found)
 	assert.Equal(t, "", got)
+}
+
+// TestCache_MaxSize tests the maximum capacity feature of a cache. It checks that updated items are properly requeued as "new" items and that we make room by removing the oldest item for the new one.
+func TestCache_MaxSize(t *testing.T) {
+	t.Parallel()
+
+	c := cache.New[int, int](3, time.Minute)
+
+	c.Upsert(1, 1)
+	c.Upsert(2, 2)
+	c.Upsert(3, 3)
+
+	got, found := c.Read(1)
+	assert.True(t, found)
+	assert.Equal(t, got, 1)
+
+	// Update the oldest element making it the "newest"
+	c.Upsert(1, 10)
+
+	// Adding another element will push the current "oldest"(this is 2 at the moment) out
+	c.Upsert(4, 4)
+
+	// Attmempt to retrieve an element that should be in the cache at this moment
+	got, found = c.Read(2)
+	assert.False(t, found)
+	assert.Equal(t, got, 0)
 }
